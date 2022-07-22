@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "ecf-dedup"
+version = "0.1.0"
+description = ""
+authors = ["Mike Babb <mike7400@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+mypy = "^0.971"
+pandas = "^1.4.3"
+
+[tool.poetry.dev-dependencies]
+black = "^22.6.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
