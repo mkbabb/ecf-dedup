@@ -79,6 +79,8 @@ def map_bens(ecf_df: pd.DataFrame, supp_path: str):
 
 
 def spatial_join(df: pd.DataFrame, school_districts_path: str):
+    """Most reliable method to map a school-like entity to a given district;
+    100% of the supplemental E-rate data contain coordinates for the included schools."""
     gdf = gpd.GeoDataFrame(
         df, geometry=gpd.points_from_xy(df.Longitude, df.Latitude), crs="EPSG:4269"
     )
@@ -92,6 +94,10 @@ def spatial_join(df: pd.DataFrame, school_districts_path: str):
 
 
 def dedup(ecf_df: pd.DataFrame):
+    """Removes duplicated rows based on each pair of (FRN, FRN Line Item).
+    If an entry contains a status of 'Pending' in addition to any other status,
+    the 'Pending' entry is removed; this row is duplicated in regards to
+    calculating the Line Total Cost."""
     frns = ecf_df.groupby(["Funding Request Number (FRN)", "FRN Line Item ID"])
 
     drop_ixs = []
@@ -132,6 +138,8 @@ def dedup(ecf_df: pd.DataFrame):
 
 
 def get_ecf_data():
+    """Automatically downloads the latest ECF data.
+    If it's already been downloaded for the day, we use that version instead."""
     url = "https://opendata.usac.org/api/views/i5j4-3rvr/rows.csv?accessType=DOWNLOAD"
     r = requests.get(url)
 
