@@ -13,9 +13,9 @@ This project requires Python 3.10 and [Poetry](https://python-poetry.org/).
 
 For recreating the USA dashboard's data source, three files are required:
 
-1. ECF Data for the USA
-    - If no file path for the chosen ECF data is provided, it will automatically pull
-      the latest version from
+1. ECF Data for the USA (or optionally your chosen state; any ECF data pulled from
+   [opendata.usac.org](https://opendata.usac.org/) will work)
+    - If no ECF filepath is provided, it will automatically pull the latest version from
       [here](<(https://opendata.usac.org/Emergency-Connectivity-Fund/Emergency-Connectivity-Fund-FCC-Form-471/i5j4-3rvr)>).
 2. E-rate supplemental entity information,
    [link](https://opendata.usac.org/E-rate/E-Rate-Supplemental-Entity-Information/7i5i-83qf).
