@@ -11,15 +11,13 @@ def current_date():
     return datetime.today().strftime("%Y-%m-%d")
 
 
-def svf_join(ecf_df: pd.DataFrame):
-    svf_filepath = "data/2022 SVF from 2021 SVF from Oct 2019 Claim Data - SVF2022.csv"
+def svf_join(ecf_df: pd.DataFrame, svf_filepath: str, regions_path: str):
+    """Internally for NC, a separate dashboard is generated using NC's SVF (State Valid File)."""
+
     svf_df = pd.read_csv(svf_filepath)
     svf_df = svf_df.groupby(["District Entity Number"]).first().reset_index()
     svf_df["LEA Number"] = svf_df["State School ID"].str.slice(0, 3)
 
-    regions_path = (
-        "data/LEA-to-Region-Mapping-May2022 - LEA-to-Region-Mapping-May2022.csv"
-    )
     regions_df = pd.read_csv(regions_path)
     regions_df["LEA No."] = regions_df["LEA No."].str.zfill(3)
 
@@ -47,23 +45,23 @@ def svf_join(ecf_df: pd.DataFrame):
     return ecf_df
 
 
-def map_bens(ecf_df: pd.DataFrame):
-    supp_path = "data/E-Rate_Supplemental_Entity_Information.csv"
+def map_bens(ecf_df: pd.DataFrame, supp_path: str):
     supp_df = pd.read_csv(supp_path)
 
-    # no_lea_ixs = supp_df["State Local Education Agency (LEA) Code"].isnull()
-    # lea = supp_df[~no_lea_ixs]
+    # Mapping the parent entity's LEA number, if it exists, back to all of its children.
+    no_lea_ixs = supp_df["State Local Education Agency (LEA) Code"].isnull()
+    lea = supp_df[~no_lea_ixs]
 
-    # def map_pen(pen: str):
-    #     if not pd.isna(pen):
-    #         row = lea[lea["Entity Number"] == pen]
-    #         if len(row) > 0:
-    #             return row["State Local Education Agency (LEA) Code"].iloc[0]
-    #     return pd.NA
+    def map_pen(pen: str):
+        if not pd.isna(pen):
+            row = lea[lea["Entity Number"] == pen]
+            if len(row) > 0:
+                return row["State Local Education Agency (LEA) Code"].iloc[0]
+        return pd.NA
 
-    # supp_df.loc[no_lea_ixs, "State Local Education Agency (LEA) Code"] = supp_df.loc[
-    #     no_lea_ixs, "Parent Entity Number"
-    # ].apply(map_pen)
+    supp_df.loc[no_lea_ixs, "State Local Education Agency (LEA) Code"] = supp_df.loc[
+        no_lea_ixs, "Parent Entity Number"
+    ].apply(map_pen)
 
     supp_df = (
         supp_df.groupby("Entity Number", as_index=False).last().reset_index(drop=True)
@@ -80,12 +78,10 @@ def map_bens(ecf_df: pd.DataFrame):
     return ecf_df
 
 
-def spatial_join(df: pd.DataFrame):
+def spatial_join(df: pd.DataFrame, school_districts_path: str):
     gdf = gpd.GeoDataFrame(
         df, geometry=gpd.points_from_xy(df.Longitude, df.Latitude), crs="EPSG:4269"
     )
-
-    school_districts_path = "~/Documents/My Tableau Repository/Datasources/EDGESCHOOLDISTRICT_TL21_SY2021/schooldistrict_sy2021_tl21.shp"
     school_districts_gdf = gpd.read_file(school_districts_path)
 
     gdf = gdf.sjoin(school_districts_gdf, how="left")
@@ -149,7 +145,13 @@ def get_ecf_data():
     return ecf_filepath
 
 
-def main(ecf_filepath: Optional[str] = None):
+def main(
+    supp_path: str,
+    school_districts_path: str,
+    ecf_filepath: Optional[str] = None,
+    svf_filepath: Optional[str] = None,
+    regions_path: Optional[str] = None,
+):
     if ecf_filepath is None:
         ecf_filepath = get_ecf_data()
 
@@ -158,10 +160,10 @@ def main(ecf_filepath: Optional[str] = None):
 
     ecf_df = pd.read_csv(ecf_filepath)
 
-    ecf_df = map_bens(ecf_df)
-    ecf_df = spatial_join(ecf_df)
-    # NC only
-    ecf_df = svf_join(ecf_df)
+    ecf_df = map_bens(ecf_df, supp_path=supp_path)
+    ecf_df = spatial_join(ecf_df, school_districts_path=school_districts_path)
+    if svf_filepath is not None:
+        ecf_df = svf_join(ecf_df, svf_filepath=svf_filepath, regions_path=regions_path)
     ecf_df = dedup(ecf_df)
 
     ecf_df.to_csv(out_filepath, index=False)
@@ -170,5 +172,12 @@ def main(ecf_filepath: Optional[str] = None):
 if __name__ == "__main__":
     # ecf_filepath = "data/ECF_NC_Only.csv"
     ecf_filepath = "data/Emergency_Connectivity_Fund_FCC_Form_471 - July 30 - USA.csv"
+    supp_path = "data/E-Rate_Supplemental_Entity_Information.csv"
+    school_districts_path = "~/Documents/My Tableau Repository/Datasources/EDGESCHOOLDISTRICT_TL21_SY2021/schooldistrict_sy2021_tl21.shp"
 
-    main()
+    # svf_filepath = "data/2022 SVF from 2021 SVF from Oct 2019 Claim Data - SVF2022.csv"
+    # regions_path = (
+    #     "data/LEA-to-Region-Mapping-May2022 - LEA-to-Region-Mapping-May2022.csv"
+    # )
+
+    main(supp_path=supp_path, school_districts_path=school_districts_path)
