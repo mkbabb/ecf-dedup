@@ -1,6 +1,6 @@
 import pathlib
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 import geopandas as gpd
 import pandas as pd
@@ -11,69 +11,80 @@ def current_date():
     return datetime.today().strftime("%Y-%m-%d")
 
 
-def svf_join(ecf_df: pd.DataFrame, svf_filepath: str, regions_path: str):
-    """Internally for NC, a separate dashboard is generated using NC's SVF (State Valid File)."""
+def merge_n_drop(*args, keep_cols: Literal["left", "right", "both"] = "left", **kwargs):
+    to_set = lambda x: {x} if isinstance(x, str) else set(x)
 
-    svf_df = pd.read_csv(svf_filepath)
-    svf_df = svf_df.groupby(["District Entity Number"]).first().reset_index()
-    svf_df["LEA Number"] = svf_df["State School ID"].str.slice(0, 3)
+    suffixes = kwargs.get("suffixes", ("_x", "_y"))
 
-    regions_df = pd.read_csv(regions_path)
-    regions_df["LEA No."] = regions_df["LEA No."].str.zfill(3)
+    left, right, *args = args
+    left_columns, right_columns = set(left.columns), set(right.columns)
 
-    ecf_df = ecf_df[ecf_df["Billed Entity State"] == "NC"]
-    ecf_df = ecf_df[
-        ecf_df["Billed Entity Number (BEN)"].isin(svf_df["District Entity Number"])
-    ]
+    merged = pd.merge(left, right, *args, **kwargs)
 
-    ecf_df = pd.merge(
-        ecf_df,
-        svf_df[["District Entity Number", "State School ID", "LEA Number"]],
-        left_on="Billed Entity Number (BEN)",
-        right_on="District Entity Number",
-        how="inner",
-    )
+    if keep_cols != "both":
+        dropped = to_set(kwargs.get(f"{keep_cols}_on", kwargs.get("on", {})))
 
-    ecf_df = pd.merge(
-        ecf_df,
-        regions_df[["LEA No.", "SBE Region", "SBE Region Names"]],
-        how="left",
-        left_on="LEA Number",
-        right_on="LEA No.",
-    ).drop(["LEA No."], axis=1)
+        same = left_columns.intersection(right_columns)
 
-    return ecf_df
+        same_dropped = same.intersection(dropped)
+        dropped = dropped.difference(same)
+
+        same = same.difference(same_dropped)
+
+        rename_cols = left_columns.intersection(same)
+        rename_suffix, drop_suffix = suffixes
+
+        if keep_cols == "right":
+            drop_suffix, rename_suffix = suffixes
+            rename_cols = right_columns.intersection(same)
+
+        rename_mapper = {f"{i}{rename_suffix}": i for i in rename_cols}
+        dropped |= {f"{i}{drop_suffix}" for i in same_dropped}
+
+        merged.drop(dropped, axis=1, inplace=True)
+        merged.rename(rename_mapper, inplace=True)
+
+    return merged
 
 
 def map_bens(ecf_df: pd.DataFrame, supp_path: str):
+    children_cols = "Total Number of Full-Time Students	Total Number of Part-Time Students	Peak Number of Part-Time Students	Number of NSLP Students".split(
+        "	"
+    )
+
     supp_df = pd.read_csv(supp_path)
 
     # Mapping the parent entity's LEA number, if it exists, back to all of its children.
-    no_lea_ixs = supp_df["State Local Education Agency (LEA) Code"].isnull()
-    lea = supp_df[~no_lea_ixs]
+    parent_ixs = supp_df["Parent Entity Number"].isnull()
+    children = supp_df[~parent_ixs]
 
-    def map_pen(pen: str):
-        if not pd.isna(pen):
-            row = lea[lea["Entity Number"] == pen]
-            if len(row) > 0:
-                return row["State Local Education Agency (LEA) Code"].iloc[0]
-        return pd.NA
+    hey = children.groupby("Parent Entity Number")[children_cols].sum().reset_index()
 
-    supp_df.loc[no_lea_ixs, "State Local Education Agency (LEA) Code"] = supp_df.loc[
-        no_lea_ixs, "Parent Entity Number"
-    ].apply(map_pen)
+    supp_df = merge_n_drop(
+        hey,
+        supp_df,
+        left_on="Parent Entity Number",
+        right_on="Entity Number",
+        how="right",
+    )
 
     supp_df = (
         supp_df.groupby("Entity Number", as_index=False).last().reset_index(drop=True)
     )
 
-    ecf_df = pd.merge(
+    ecf_df = merge_n_drop(
         ecf_df,
         supp_df,
         left_on="Billed Entity Number (BEN)",
         right_on="Entity Number",
         how="left",
     )
+
+    nc = supp_df[supp_df["Physical State"] == "NC"]
+
+    print(nc[nc["Entity Number"] == 17000198]["Total Number of Full-Time Students"])
+
+    heyy = supp_df["Total Number of Full-Time Students"].sum()
 
     return ecf_df
 
@@ -137,55 +148,42 @@ def dedup(ecf_df: pd.DataFrame):
     return ecf_df
 
 
-def get_ecf_data():
+def get_ecf_data(ecf_filepath: Optional[str] = None):
     """Automatically downloads the latest ECF data.
     If it's already been downloaded for the day, we use that version instead."""
-    url = "https://opendata.usac.org/api/views/i5j4-3rvr/rows.csv?accessType=DOWNLOAD"
-    r = requests.get(url)
 
-    ecf_filepath = f"data/ECF Data - {current_date()}.csv"
-    ecf_filepath = pathlib.Path(ecf_filepath)
+    if ecf_filepath is None:
+        ecf_filepath = f"data/ECF Data - {current_date()}.csv"
+        ecf_filepath = pathlib.Path(ecf_filepath)
 
-    if not ecf_filepath.exists():
-        with open(ecf_filepath, "wb") as file:
-            file.write(r.content)
+        if not ecf_filepath.exists():
+            url = "https://opendata.usac.org/api/views/i5j4-3rvr/rows.csv?accessType=DOWNLOAD"
+            r = requests.get(url)
+            with open(ecf_filepath, "wb") as file:
+                file.write(r.content)
 
-    return ecf_filepath
+    return pd.read_csv(ecf_filepath)
 
 
-def main(
+def process_ecf_data(
+    ecf_df: pd.DataFrame,
     supp_path: str,
     school_districts_path: str,
-    ecf_filepath: Optional[str] = None,
-    svf_filepath: Optional[str] = None,
-    regions_path: Optional[str] = None,
+    out_filepath: str = f"data/ECF Deduped - {current_date()}.csv",
 ):
-    if ecf_filepath is None:
-        ecf_filepath = get_ecf_data()
-
-    ecf_filepath = pathlib.Path(ecf_filepath)
-    out_filepath = ecf_filepath.with_name(f"{ecf_filepath.stem} - Deduped.csv")
-
-    ecf_df = pd.read_csv(ecf_filepath)
-
     ecf_df = map_bens(ecf_df, supp_path=supp_path)
     ecf_df = spatial_join(ecf_df, school_districts_path=school_districts_path)
-    if svf_filepath is not None:
-        ecf_df = svf_join(ecf_df, svf_filepath=svf_filepath, regions_path=regions_path)
     ecf_df = dedup(ecf_df)
 
     ecf_df.to_csv(out_filepath, index=False)
 
 
 if __name__ == "__main__":
-    # ecf_filepath = "data/ECF_NC_Only.csv"
-    ecf_filepath = "data/Emergency_Connectivity_Fund_FCC_Form_471 - July 30 - USA.csv"
     supp_path = "data/E-Rate_Supplemental_Entity_Information.csv"
     school_districts_path = "~/Documents/My Tableau Repository/Datasources/EDGESCHOOLDISTRICT_TL21_SY2021/schooldistrict_sy2021_tl21.shp"
 
-    # svf_filepath = "data/2022 SVF from 2021 SVF from Oct 2019 Claim Data - SVF2022.csv"
-    # regions_path = (
-    #     "data/LEA-to-Region-Mapping-May2022 - LEA-to-Region-Mapping-May2022.csv"
-    # )
+    ecf_df = get_ecf_data()
 
-    main(supp_path=supp_path, school_districts_path=school_districts_path)
+    process_ecf_data(
+        ecf_df=ecf_df, supp_path=supp_path, school_districts_path=school_districts_path
+    )
