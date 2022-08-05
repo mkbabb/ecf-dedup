@@ -24,7 +24,10 @@ For recreating the USA dashboard's data source, three files are required:
    [link](https://nces.ed.gov/programs/edge/Geographic/DistrictBoundaries). _warning,
    the file is rather large at ~180Mb_.
 
-After retrieving the above, run the script.
+If you do not provide the path information directly within [`ecf_dedup.py`](ecf_deup.py)
+(as is default), the script will fetch the above three files automatically for you. By
+default, these files are stored within the `./data/` directory, and each has a unique
+filename, hashed from its source URL.
 
 ### Building the dashboard
 
