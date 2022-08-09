@@ -16,14 +16,14 @@ SCHOOL_DISTRICTS_URL = (
 
 def get_ecf_data(ecf_filepath: Optional[str] = None):
     ecf_filepath, _ = GET_if_not_exists(
-        url=ECF_URL, filepath=ecf_filepath, days_until_stale=7
+        url=ECF_URL, filepath=ecf_filepath, days_until_stale=7, suffix=".csv"
     )
     return pd.read_csv(ecf_filepath)
 
 
 def get_supp_data(supp_path: Optional[str] = None):
     supp_path, downloaded = GET_if_not_exists(
-        url=ERATE_SUPP_URL, filepath=supp_path, days_until_stale=7
+        url=ERATE_SUPP_URL, filepath=supp_path, days_until_stale=7, suffix=".csv"
     )
     supp_df = pd.read_csv(supp_path)
 
@@ -62,15 +62,11 @@ def get_supp_data(supp_path: Optional[str] = None):
 
 def get_school_districts_data(school_districts_path: Optional[str] = None):
     school_districts_path, _ = GET_if_not_exists(
-        url=SCHOOL_DISTRICTS_URL, filepath=school_districts_path
+        url=SCHOOL_DISTRICTS_URL, filepath=school_districts_path, suffix=".zip"
     )
-    t_school_districts_path = school_districts_path.rename(
-        school_districts_path.with_suffix(".zip")
-    )
-    # File extension must exist, so we add a .zip.
-    gdf = gpd.read_file(t_school_districts_path)
 
-    t_school_districts_path.rename(school_districts_path)
+    # File extension must exist, so we add a .zip.
+    gdf = gpd.read_file(school_districts_path)
 
     return gdf
 
@@ -151,8 +147,6 @@ def process_ecf_data(
     school_districts_path: Optional[str] = None,
     out_filepath: str = f"data/ECF Deduped.csv",
 ):
-    ecf_df = ecf_df[ecf_df["Billed Entity State"] == "NC"]
-
     supp_df = get_supp_data(supp_path=supp_path)
     ecf_df = map_bens(ecf_df, supp_df=supp_df)
 

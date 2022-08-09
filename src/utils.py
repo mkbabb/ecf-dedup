@@ -134,6 +134,7 @@ def GET_if_not_exists(
     filepath: Optional[str] = None,
     out_dir: Optional[str] = OUT_DIR,
     days_until_stale: Optional[int] = None,
+    suffix: str = "",
 ) -> tuple[pathlib.Path, bool]:
     """Automatically downloads a bytes file from some URL.
     If it's already been downloaded within days_until_stale,
@@ -142,6 +143,7 @@ def GET_if_not_exists(
     Return the output path and whether or not the file's been downloaded."""
     if filepath is None:
         filepath = make_hashed_filename(s=url, out_dir=out_dir)
+        filepath = filepath.with_suffix(suffix)
 
     filepath = pathlib.Path(filepath)
 
