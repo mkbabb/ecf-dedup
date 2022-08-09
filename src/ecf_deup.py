@@ -98,7 +98,7 @@ def spatial_join(df: pd.DataFrame, school_districts_gdf: gpd.GeoDataFrame):
 
     df = pd.DataFrame(gdf.drop(columns="geometry"))
 
-    return gdf
+    return df
 
 
 def dedeup_frns(ecf_df: pd.DataFrame):
@@ -151,6 +151,8 @@ def process_ecf_data(
     school_districts_path: Optional[str] = None,
     out_filepath: str = f"data/ECF Deduped.csv",
 ):
+    ecf_df = ecf_df[ecf_df["Billed Entity State"] == "NC"]
+
     supp_df = get_supp_data(supp_path=supp_path)
     ecf_df = map_bens(ecf_df, supp_df=supp_df)
 
