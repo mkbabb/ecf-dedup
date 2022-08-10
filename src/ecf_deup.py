@@ -87,11 +87,8 @@ def spatial_join(df: pd.DataFrame, school_districts_gdf: gpd.GeoDataFrame):
     gdf = gpd.GeoDataFrame(
         df, geometry=gpd.points_from_xy(df.Longitude, df.Latitude), crs="EPSG:4269"
     )
-
     gdf = gdf.sjoin(school_districts_gdf, how="left")
-
     df = pd.DataFrame(gdf.drop(columns="geometry"))
-
     return df
 
 
