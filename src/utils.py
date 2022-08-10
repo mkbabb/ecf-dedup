@@ -14,12 +14,12 @@ def merge_n_drop(
     *args,
     how: str = "inner",
     validate: Optional[str] = None,
-    keep_dup_cols: Literal["left", "right", "both"] = "left",
+    dup_cols_to_keep: Literal["left", "right", "both"] = "left",
     ensure_m1: bool = True,
     **kwargs,
 ):
     """'Better' way to merge two dataframes - at least more intuitive.
-    If the keep_dup_cols value is not 'both', this function will ensure
+    If the dup_cols_to_keep value is not 'both', this function will ensure
     that there are no duplicated columns in the resultant merged dataframe.
 
     For example:
@@ -42,7 +42,7 @@ def merge_n_drop(
     Typically, one of the two joining columns is superfluous.
     Further, any exactly duplicated columns are also likely superfluous (the "ok" column need not be included twice).
 
-    merge_n_drop will instead, depending on the value of keep_dup_cols, only keep overlapping columns from one dataframe.
+    merge_n_drop will instead, depending on the value of dup_cols_to_keep, only keep overlapping columns from one dataframe.
     In the above example, if we instead:
 
         merged = merge_n_drop(
@@ -51,7 +51,7 @@ def merge_n_drop(
             left_on="join_col",
             right_on="another_join_col",
             how="left",
-            keep_dup_cols="left"
+            dup_cols_to_keep="left"
         )
 
     Will yield:
@@ -77,7 +77,7 @@ def merge_n_drop(
     def _merge():
         return pd.merge(left, right, *args, how=how, validate=validate, **kwargs)
 
-    if keep_dup_cols == "both":
+    if dup_cols_to_keep == "both":
         return _merge()
     else:
         left_columns, right_columns = set(left.columns), set(right.columns)
@@ -101,19 +101,19 @@ def merge_n_drop(
         # We only keep overlapping columns
         # from one explicitly specified dataframe,
         # optimizing the join
-        if keep_dup_cols == "left":
+        if dup_cols_to_keep == "left":
             rename_suffix, drop_suffix = suffixes
             cols = [i for i in right.columns if i not in same]
             right = right[cols]
-        elif keep_dup_cols == "right":
+        elif dup_cols_to_keep == "right":
             drop_suffix, rename_suffix = suffixes
             cols = [i for i in left.columns if i not in same]
             left = left[cols]
 
         # If a column is a join column AND and overlapping column we can't
         # filter it in the above; we're going to end up with a duplicated set of columns.
-        # We rename, and thus keep, the columns in the keep_dup_cols dataframe
-        # and drop the columns in the opposing keep_dup_cols dataframe.
+        # We rename, and thus keep, the columns in the dup_cols_to_keep dataframe
+        # and drop the columns in the opposing dup_cols_to_keep dataframe.
         drop_cols = same | {f"{i}{drop_suffix}" for i in same_n_join_cols}
         rename_mapper = {f"{i}{rename_suffix}": i for i in same_n_join_cols}
 
