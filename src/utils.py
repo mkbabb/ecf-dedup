@@ -85,14 +85,16 @@ def merge_n_drop(
         to_set = lambda x: {x} if isinstance(x, str) else set(x)
 
         suffixes = kwargs.get("suffixes", ("_x", "_y"))
-        join_cols = to_set(kwargs.get(f"{keep_dup_cols}_on", kwargs.get("on", {})))
+        join_cols = set()
 
-        same = left_columns.intersection(right_columns)
+        if "left_on" in kwargs and "right_on" in kwargs:
+            join_cols |= to_set(kwargs["left_on"]) | to_set(kwargs["right_on"])
+        elif "on" in kwargs:
+            join_cols |= to_set(kwargs["on"])
 
-        same_n_join_cols = same.intersection(join_cols)
-        join_cols = join_cols.difference(same)
-
-        same = same.difference(same_n_join_cols)
+        same = left_columns & right_columns
+        same_n_join_cols = same & join_cols
+        same -= join_cols
 
         drop_suffix = None
 
@@ -112,12 +114,12 @@ def merge_n_drop(
         # filter it in the above; we're going to end up with a duplicated set of columns.
         # We rename, and thus keep, the columns in the keep_dup_cols dataframe
         # and drop the columns in the opposing keep_dup_cols dataframe.
-        join_cols |= {f"{i}{drop_suffix}" for i in same_n_join_cols}
+        drop_cols = same | {f"{i}{drop_suffix}" for i in same_n_join_cols}
         rename_mapper = {f"{i}{rename_suffix}": i for i in same_n_join_cols}
 
         merged = _merge()
 
-        merged.drop(join_cols, axis=1, inplace=True)
+        merged.drop(drop_cols, axis=1, inplace=True)
         merged.rename(rename_mapper, axis=1, inplace=True)
 
         return merged

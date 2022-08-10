@@ -64,10 +64,8 @@ def get_school_districts_data(school_districts_path: Optional[str] = None):
     school_districts_path, _ = GET_if_not_exists(
         url=SCHOOL_DISTRICTS_URL, filepath=school_districts_path, suffix=".zip"
     )
-
     # File extension must exist, so we add a .zip.
     gdf = gpd.read_file(school_districts_path)
-
     return gdf
 
 
