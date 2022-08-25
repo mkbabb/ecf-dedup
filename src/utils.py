@@ -156,7 +156,7 @@ def GET_if_not_exists(
         delta = datetime.datetime.today() - datetime.datetime.fromtimestamp(
             modified_time
         )
-        download = delta.days > days_until_stale
+        download = delta.days >= days_until_stale
 
     if download:
         r = requests.get(url)

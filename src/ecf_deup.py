@@ -49,7 +49,7 @@ def get_supp_data(supp_path: Optional[str] = None):
         left_on="Parent Entity Number",
         right_on="Entity Number",
         how="right",
-        keep_dup_cols="left",
+        dup_cols_to_keep="left",
     )
 
     supp_df = (
