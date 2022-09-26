@@ -8,5 +8,7 @@ __pycache__/
 .env
 
 data/
+auth/
 
 process_nc.py
+tmp*.py
