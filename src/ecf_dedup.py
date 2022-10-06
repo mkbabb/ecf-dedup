@@ -44,7 +44,10 @@ def get_ecf_data(ecf_filepath: Optional[str] = None):
     ecf_filepath, _ = GET_if_not_exists(
         url=ECF_URL, filepath=ecf_filepath, days_until_stale=3, suffix=".csv"
     )
-    return pd.read_csv(ecf_filepath)
+    ecf_df = pd.read_csv(ecf_filepath)
+    ecf_df["Funding Request Narrative"] = ""
+
+    return ecf_df
 
 
 def get_supp_data(supp_path: Optional[str] = None):
