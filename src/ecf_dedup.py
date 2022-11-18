@@ -6,7 +6,7 @@ from typing import Final, Optional
 import geopandas as gpd
 import pandas as pd
 from googleapiutils.drive import Drive
-from googleapiutils.utils import get_oauth2_creds, parse_file_id
+from googleapiutils.utils import get_oauth2_creds
 
 from src.utils import GET_if_not_exists, merge_n_drop, range_join
 
@@ -15,9 +15,10 @@ PK = ["Funding Request Number (FRN)", "FRN Line Item ID", "Funding Request Statu
 
 OUT_FILEPATH: Final = pathlib.Path("data/ECF Deduped.csv")
 
-ECF_FOLDER_ID = parse_file_id(
+ECF_FOLDER = (
     "https://drive.google.com/drive/u/0/folders/1fB2mj-hl7KIduiNidbWLlMAFXZ76GmN8"
 )
+
 
 ECF_URL = "https://opendata.usac.org/api/views/i5j4-3rvr/rows.csv?accessType=DOWNLOAD"
 
@@ -31,13 +32,9 @@ SCHOOL_DISTRICTS_URL = (
 
 
 def upload_sheet(filepath: pathlib.Path, client_config: pathlib.Path):
-    creds = get_oauth2_creds(client_config=client_config, is_service_account=True)
+    creds = get_oauth2_creds(client_config=client_config)
     drive = Drive(creds)
-    drive.upload_file(
-        filepath=filepath,
-        google_mime_type="file",
-        kwargs={"body": {"parents": [ECF_FOLDER_ID]}},
-    )
+    drive.upload_file(filepath=filepath, parents=[ECF_FOLDER])
 
 
 def get_ecf_data(ecf_filepath: Optional[str] = None):
@@ -204,6 +201,23 @@ def join_nslp(ecf_df: pd.DataFrame):
     return tmp
 
 
+def join_form_471(
+    ecf_df: pd.DataFrame, ben_col: str = "Billed Entity Number (BEN)"
+) -> pd.DataFrame:
+    form_471_df = pd.read_csv("data/USA-471s-2018to2022 - Deduped.csv")
+
+    ecf_df = merge_n_drop(
+        ecf_df,
+        form_471_df,
+        left_on=ben_col,
+        right_on="Billed Entity Number",
+        how="left",
+        ensure_m1=False,
+    )
+
+    return ecf_df
+
+
 def process_ecf_data(
     ecf_df: pd.DataFrame,
     supp_path: Optional[str] = None,
@@ -228,15 +242,7 @@ def process_ecf_data(
         ensure_m1=False,
     )
 
-    form_471_df = pd.read_csv("data/USA-471s-2018to2022 - Deduped.csv")
-    ecf_df = merge_n_drop(
-        ecf_df,
-        form_471_df,
-        left_on="Billed Entity Number (BEN)",
-        right_on="Billed Entity Number",
-        how="left",
-        ensure_m1=False,
-    )
+    ecf_df = join_form_471(ecf_df)
 
     ecf_df = join_nslp(ecf_df)
 
