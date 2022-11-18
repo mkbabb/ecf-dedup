@@ -19,7 +19,6 @@ ECF_FOLDER = (
     "https://drive.google.com/drive/u/0/folders/1fB2mj-hl7KIduiNidbWLlMAFXZ76GmN8"
 )
 
-
 ECF_URL = "https://opendata.usac.org/api/views/i5j4-3rvr/rows.csv?accessType=DOWNLOAD"
 
 ERATE_SUPP_URL = (
