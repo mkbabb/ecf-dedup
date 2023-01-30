@@ -494,7 +494,7 @@ types-requests = "^2.28.9"
 type = "git"
 url = "git@github.com:mkbabb/googleapiutils2.git"
 reference = "HEAD"
-resolved_reference = "dff233c8e97240d708234bb2a0786ebb328b7759"
+resolved_reference = "c9d6136152d72a574f9922b49132dbbde00ad0e0"
 
 [[package]]
 name = "httplib2"
