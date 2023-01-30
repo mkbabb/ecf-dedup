@@ -1,21 +1,19 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Final, Optional
 
 import geopandas as gpd
 import pandas as pd
-from googleapiutils.drive import Drive
-from googleapiutils.utils import get_oauth2_creds
+from googleapiutils2 import Drive, get_oauth2_creds
 
 from src.utils import GET_if_not_exists, merge_n_drop, range_join
 
 PK = ["Funding Request Number (FRN)", "FRN Line Item ID", "Funding Request Status"]
 
 
-OUT_FILEPATH: Final = pathlib.Path("data/ECF Deduped.csv")
+OUT_FILEPATH = pathlib.Path("data/ECF Deduped.csv")
 
-ECF_FOLDER = (
+ECF_FOLDER_URL = (
     "https://drive.google.com/drive/u/0/folders/1fB2mj-hl7KIduiNidbWLlMAFXZ76GmN8"
 )
 
@@ -30,13 +28,16 @@ SCHOOL_DISTRICTS_URL = (
 )
 
 
-def upload_sheet(filepath: pathlib.Path, client_config: pathlib.Path):
-    creds = get_oauth2_creds(client_config=client_config)
+def upload_sheet(filepath: pathlib.Path):
+    client_config_path = pathlib.Path("auth/creds.json")
+
+    creds = get_oauth2_creds(client_config=client_config_path)
     drive = Drive(creds)
-    drive.upload_file(filepath=filepath, parents=[ECF_FOLDER])
+
+    drive.upload_file(filepath=filepath, parents=[ECF_FOLDER_URL])
 
 
-def get_ecf_data(ecf_filepath: Optional[str] = None):
+def get_ecf_data(ecf_filepath: str | None = None):
     ecf_filepath, _ = GET_if_not_exists(
         url=ECF_URL, filepath=ecf_filepath, days_until_stale=3, suffix=".csv"
     )
@@ -46,7 +47,7 @@ def get_ecf_data(ecf_filepath: Optional[str] = None):
     return ecf_df
 
 
-def get_supp_data(supp_path: Optional[str] = None):
+def get_supp_data(supp_path: str | None = None):
     supp_path, downloaded = GET_if_not_exists(
         url=ERATE_SUPP_URL, filepath=supp_path, days_until_stale=7, suffix=".csv"
     )
@@ -84,7 +85,7 @@ def get_supp_data(supp_path: Optional[str] = None):
     return supp_df
 
 
-def get_school_districts_data(school_districts_path: Optional[str] = None):
+def get_school_districts_data(school_districts_path: str | None = None):
     school_districts_path, _ = GET_if_not_exists(
         url=SCHOOL_DISTRICTS_URL, filepath=school_districts_path, suffix=".zip"
     )
@@ -219,8 +220,8 @@ def join_form_471(
 
 def process_ecf_data(
     ecf_df: pd.DataFrame,
-    supp_path: Optional[str] = None,
-    school_districts_path: Optional[str] = None,
+    supp_path: str | None = None,
+    school_districts_path: str | None = None,
     out_filepath: pathlib.Path = OUT_FILEPATH,
 ):
     supp_df = get_supp_data(supp_path=supp_path)
@@ -254,5 +255,4 @@ if __name__ == "__main__":
     ecf_df = get_ecf_data()
     ecf_df = process_ecf_data(ecf_df=ecf_df, out_filepath=out_filepath)
 
-    client_config_path = pathlib.Path("auth/creds.json")
-    upload_sheet(filepath=out_filepath, client_config=client_config_path)
+    upload_sheet(filepath=out_filepath)

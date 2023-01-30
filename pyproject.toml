@@ -5,13 +5,13 @@ description = ""
 authors = ["Mike Babb <mike7400@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.12"
 mypy = "^0.971"
 pandas = "^1.4.3"
 geopandas = "^0.11.1"
 Rtree = "^1.0.0"
 requests = "^2.28.1"
-googleapiutils = {git = "git@github.com:mkbabb/googleapiutils.git"}
+googleapiutils2 = {git = "git@github.com:mkbabb/googleapiutils2.git"}
 Jinja2 = "^3.1.2"
 openpyxl = "^3.0.10"
 
