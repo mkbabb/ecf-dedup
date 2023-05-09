@@ -84,6 +84,69 @@ def process_dir(dir_path: pathlib.Path):
     return df
 
 
+def join_ecf(usf_df: pd.DataFrame, ecf_filepath: pathlib.Path):
+    ecf_df = pd.read_csv(ecf_filepath)
+
+    ecf_df = (
+        ecf_df.groupby(["Billed Entity State"])
+        .agg({"Line Total Cost": "sum"})
+        .reset_index()
+    )
+    ecf_df["Year"] = 2022
+
+    us_states_names_path = pathlib.Path("data/us-states-names.csv")
+
+    us_states_names_df = pd.read_csv(us_states_names_path)
+    us_states_names_df = us_states_names_df.rename(
+        columns={"Name": "State Name", "Abbreviation": "State Abbreviation"}
+    )
+    usf_df = usf_df.merge(
+        us_states_names_df, how="left", left_on="State", right_on="State Name"
+    )
+
+    usf_df = usf_df.merge(
+        ecf_df,
+        how="left",
+        left_on=["State Abbreviation", "Year"],
+        right_on=["Billed Entity State", "Year"],
+    )
+
+    return usf_df
+
+
+def dollar_to_float(value: Any) -> float:
+    try:
+        return float(value.replace("$", "").replace(",", ""))
+    except:
+        return 0.0
+
+
+def join_acp(usf_df: pd.DataFrame, acp_filepath: pathlib.Path):
+    acp_df = pd.read_csv(acp_filepath)
+
+    # agg the acp_df by Data Month, which is Month-Year, by year, and then by State
+    acp_df["Data Month"] = pd.to_datetime(acp_df["Data Month"], format="%b-%y")
+    acp_df["Year"] = acp_df["Data Month"].dt.year
+
+    acp_df[" Total Support "] = acp_df[" Total Support "].apply(dollar_to_float)
+    acp_df = (
+        acp_df.groupby(["Year", "State"]).agg({" Total Support ": "sum"}).reset_index()
+    )
+
+    # merge the acp_df with the usf_df on Year and State (which is an abbreviation)
+    usf_df = usf_df.merge(
+        acp_df,
+        how="left",
+        left_on=["Year", "State Abbreviation"],
+        right_on=["Year", "State"],
+    )
+
+    usf_df = usf_df.drop(columns=["State_y"])
+    usf_df = usf_df.rename(columns={"State_x": "State"})
+
+    return usf_df
+
+
 if __name__ == "__main__":
     creds = get_oauth2_creds(client_config=pathlib.Path("auth/creds.json"))
     sheets = Sheets(creds)
@@ -92,9 +155,18 @@ if __name__ == "__main__":
     df = process_dir(dir_path=dir_path)
 
     filepath = pathlib.Path("data/USF Data.csv")
-
     df.to_csv(filepath, index=False)
 
+    ecf_filepath = pathlib.Path("data/ECF Deduped.csv")
+
+    df = join_ecf(usf_df=df, ecf_filepath=ecf_filepath)
+
+    acp_filepath = pathlib.Path(
+        "data/ACP-Households-and-Claims-by-County-January-August-2022.xlsx - Sheet 1.csv"
+    )
+    df = join_acp(usf_df=df, acp_filepath=acp_filepath)
+
+    sheets.clear(spreadsheet_id=SHEET_URL, range_name="Sheet1")
     sheets.update(
         spreadsheet_id=SHEET_URL, range_name="Sheet1", values=sheets.from_frame(df)
     )
