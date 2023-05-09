@@ -252,7 +252,7 @@ def process_ecf_data(
 
 if __name__ == "__main__":
     out_filepath = OUT_FILEPATH
-    # ecf_df = get_ecf_data()
-    # ecf_df = process_ecf_data(ecf_df=ecf_df, out_filepath=out_filepath)
+    ecf_df = get_ecf_data()
+    ecf_df = process_ecf_data(ecf_df=ecf_df, out_filepath=out_filepath)
 
     upload_sheet(filepath=out_filepath)
