@@ -98,6 +98,8 @@ def process_dir(dir_path: pathlib.Path):
             df[DOLLAR_HEADER] *= 1000.0
             if year == 2017:
                 df[["High Cost", "Low Income"]] /= 1000.0
+            if year == 2018:
+                df["Schools & Libraries"] /= 1000.0
 
         df["Year"] = year
         df["State Import"] = df["Delta"] / df["Contributions"]
