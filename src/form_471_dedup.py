@@ -6,7 +6,7 @@ BEN = "Billed Entity Number"
 FUNDING_YEAR = "Funding Year"
 CAT1_DISCOUNT = "Category One Discount Rate"
 
-path = pathlib.Path("data/USA-471s-2018to2022.csv")
+path = pathlib.Path("data/E-Rate_Request_for_Discount_on_Services__Basic_Information__FCC_Form_471_and_Related_Information__20231023.csv")
 
 app_df = pd.read_csv(path)
 
